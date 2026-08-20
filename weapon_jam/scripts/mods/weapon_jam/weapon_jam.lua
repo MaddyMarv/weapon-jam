@@ -427,9 +427,12 @@ local function handle_input_interception(func, self, action_name)
 			end
 		end
 
+		local is_special_jammable = is_wielded_weapon_special_jammable()
+		local is_physical_special_action = not is_special_jammable and (action_name == "weapon_extra_pressed" or action_name == "weapon_extra_hold" or action_name == "weapon_extra" or action_name == "weapon_extra_release")
+
 		local is_defensive_push = (lockout_mode == "defensive_only" and wielded == "slot_primary" and (action_name == "action_one_pressed" or action_name == "action_one_hold")) and (is_local_player_blocking() or (self.get and self:get("action_two_hold")))
 
-		if blocked_actions[action_name] and not is_defensive_push then
+		if blocked_actions[action_name] and not is_defensive_push and not is_physical_special_action then
 			if (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "weapon_extra_pressed") and out then
 				local t = Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay") or 0
 				if t - (mod.last_dryfire_time or 0) > 0.25 then
