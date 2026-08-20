@@ -399,7 +399,6 @@ local function handle_input_interception(func, self, action_name)
 		return out
 	end
 
-	-- 1. Activation jam roll if currently wielded weapon is not jammed and weapon_extra_pressed fires
 	if not state.is_jammed and action_name == "weapon_extra_pressed" and out then
 		if mod:get("enable_activation_jam") and is_wielded_weapon_special_jammable() then
 			local jam_chance = mod:get("activation_jam_chance")
@@ -413,7 +412,6 @@ local function handle_input_interception(func, self, action_name)
 		end
 	end
 
-	-- 2. If the currently wielded weapon is jammed, block actions based on lockout mode
 	if state.is_jammed then
 		clear_external_swap_queues()
 		local lockout_mode = mod:get("activation_lockout_mode") or "special_only"
