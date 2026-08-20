@@ -8,6 +8,26 @@ mod.last_dryfire_time = 0
 mod.error_timer = 0
 mod.success_timer = 0
 mod.pulse_timer = 0
+mod.dpad_grace_timer = 0
+mod.waiting_for_dpad_release = false
+
+local function is_any_dpad_held()
+	local pad = Pad1
+	if pad and pad.button and pad.button_index then
+		local b_up = pad.button_index("d_up")
+		local b_down = pad.button_index("d_down")
+		local b_left = pad.button_index("d_left")
+		local b_right = pad.button_index("d_right")
+		local up = b_up and pad.button(b_up) or 0
+		local down = b_down and pad.button(b_down) or 0
+		local left = b_left and pad.button(b_left) or 0
+		local right = b_right and pad.button(b_right) or 0
+		if up > 0 or down > 0 or left > 0 or right > 0 then
+			return true
+		end
+	end
+	return false
+end
 
 local DIRECTIONS = { "up", "down", "left", "right" }
 
@@ -32,6 +52,39 @@ local SHOOT_ACTION_KINDS = {
 	charge = true,
 	charge_ammo = true,
 	ranged_load_special = true,
+}
+
+local BLOCKED_GUN_ACTIONS = {
+	action_one_pressed = true,
+	action_one_hold = true,
+	action_one_release = true,
+	action_two_hold = true,
+	action_two_pressed = true,
+	action_two_release = true,
+	weapon_extra_pressed = true,
+	weapon_extra_hold = true,
+	weapon_extra = true,
+	weapon_extra_release = true,
+}
+
+local BLOCKED_CONTROLLER_DPAD_ACTIONS = {
+	wield_3 = true,
+	wield_3_gamepad = true,
+	wield_4 = true,
+	wield_4_gamepad = true,
+	wield_5 = true,
+	wield_5_gamepad = true,
+	wield_grenade = true,
+	wield_pocketable = true,
+	wield_stimm = true,
+	grenade_ability = true,
+	grenade_ability_pressed = true,
+	grenade_ability_hold = true,
+	grenade_ability_release = true,
+	weapon_inspect = true,
+	weapon_inspect_hold = true,
+	tactical_overlay_controller_scroll_down = true,
+	tactical_overlay_controller_scroll_up = true,
 }
 
 local center_text_options = {
@@ -88,6 +141,8 @@ mod.unjam_weapon = function()
 	mod.combo_sequence = {}
 	mod.current_step = 1
 	mod.success_timer = 1.2
+	mod.dpad_grace_timer = 0.5
+	mod.waiting_for_dpad_release = true
 
 	play_sound("wwise/events/ui/play_hud_ability_off_cooldown")
 end
@@ -100,13 +155,8 @@ mod.on_force_jam_pressed = function()
 	end
 end
 
-local function check_jam_on_shoot(action_instance)
+local function trigger_jam_roll()
 	if not mod:get("enable_mod") or mod.is_jammed then return end
-
-	local player_unit = action_instance._player_unit
-	local local_unit = get_local_player_unit()
-	if not player_unit or player_unit ~= local_unit then return end
-
 	if not is_local_player_wielding_ranged() then return end
 
 	local jam_chance = mod:get("jam_chance")
@@ -119,12 +169,103 @@ local function check_jam_on_shoot(action_instance)
 	end
 end
 
+mod:hook_safe("ActionHandler", "start_action", function(self, id, action_objects, action_name, action_params, action_settings)
+	local unit = self._unit
+	local local_unit = get_local_player_unit()
+	if unit and unit == local_unit then
+		local kind = action_settings and action_settings.kind
+		if kind and SHOOT_ACTION_KINDS[kind] then
+			trigger_jam_roll()
+		end
+	end
+end)
+
 mod:hook_safe("ActionShoot", "start", function(self)
-	check_jam_on_shoot(self)
+	trigger_jam_roll()
 end)
 
 mod:hook_safe("ActionSpawnProjectile", "start", function(self)
-	check_jam_on_shoot(self)
+	trigger_jam_roll()
+end)
+
+local function clear_external_swap_queues()
+	local gws = get_mod("guarantee_weapon_swap")
+	if gws and gws.promises then
+		table.clear(gws.promises)
+		gws.promise_exist = false
+	end
+	local gaa = get_mod("guarantee_ability_activation")
+	if gaa and gaa.promises then
+		table.clear(gaa.promises)
+		gaa.promise_exist = false
+	end
+end
+
+local function handle_input_interception(func, self, action_name)
+	local action_rule = self._actions and self._actions[action_name]
+	if not action_rule then
+		return func(self, action_name)
+	end
+
+	local out = func(self, action_name)
+
+	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
+		if mod.is_jammed and BLOCKED_GUN_ACTIONS[action_name] then
+			if (action_name == "action_one_pressed" or action_name == "action_one_hold") and out then
+				local t = Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay") or 0
+				if t - (mod.last_dryfire_time or 0) > 0.25 then
+					mod.last_dryfire_time = t
+					play_sound("wwise/events/ui/play_ui_click")
+				end
+			end
+			return false
+		end
+
+		if BLOCKED_CONTROLLER_DPAD_ACTIONS[action_name] then
+			local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
+			if is_gamepad then
+				if mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0) then
+					clear_external_swap_queues()
+					if not mod.is_jammed and mod.waiting_for_dpad_release and not is_any_dpad_held() and ((mod.dpad_grace_timer or 0) <= 0) then
+						mod.waiting_for_dpad_release = false
+					else
+						return false
+					end
+				end
+			end
+		end
+	end
+
+	return out
+end
+
+mod:hook("InputService", "_get", handle_input_interception)
+mod:hook("InputService", "_get_simulate", handle_input_interception)
+
+mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_name, previous_check)
+	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
+		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
+		if is_gamepad and (mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
+			if slot_name == "slot_grenade_ability" or slot_name == "slot_pocketable" or slot_name == "slot_device" then
+				clear_external_swap_queues()
+				return false
+			end
+		end
+	end
+	return func(self, slot_name, previous_check)
+end)
+
+mod:hook("PlayerUnitWeaponExtension", "can_wield", function(func, self, slot_name)
+	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
+		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
+		if is_gamepad and (mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
+			if slot_name == "slot_grenade_ability" or slot_name == "slot_pocketable" or slot_name == "slot_device" then
+				clear_external_swap_queues()
+				return false
+			end
+		end
+	end
+	return func(self, slot_name)
 end)
 
 mod:hook("ActionHandler", "_validate_action", function(func, self, action_settings, condition_func_params, t, time_in_action, used_input)
@@ -136,10 +277,6 @@ mod:hook("ActionHandler", "_validate_action", function(func, self, action_settin
 			if inventory_component and inventory_component.wielded_slot == "slot_secondary" then
 				local kind = action_settings and action_settings.kind
 				if kind and SHOOT_ACTION_KINDS[kind] then
-					if t and (t - mod.last_dryfire_time > 0.25) then
-						mod.last_dryfire_time = t
-						play_sound("wwise/events/ui/play_ui_click")
-					end
 					return false
 				end
 			end
@@ -211,6 +348,10 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 		mod.success_timer = math.max(mod.success_timer - dt, 0)
 	end
 
+	if mod.dpad_grace_timer > 0 then
+		mod.dpad_grace_timer = math.max(mod.dpad_grace_timer - dt, 0)
+	end
+
 	local screen_w = 1920
 	local screen_h = 1080
 	local hud_scale_setting = (mod:get("hud_scale") or 100) / 100
@@ -218,7 +359,7 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 
 	local hud_pos = mod:get("hud_position") or "top"
 	local center_x = screen_w * 0.5
-	local center_y = 150 * scale
+	local center_y = 235 * scale
 
 	if hud_pos == "crosshair" then
 		center_y = screen_h * 0.5 + (130 * scale)
@@ -329,6 +470,8 @@ local function reset_state()
 	mod.error_timer = 0
 	mod.success_timer = 0
 	mod.pulse_timer = 0
+	mod.dpad_grace_timer = 0
+	mod.waiting_for_dpad_release = false
 end
 
 mod.on_game_state_changed = function(status, state_name)
