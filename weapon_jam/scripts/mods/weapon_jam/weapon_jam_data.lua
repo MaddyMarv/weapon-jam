@@ -25,6 +25,29 @@ return {
 						step_size_value = 1.0,
 					},
 					{
+						setting_id = "enable_activation_jam",
+						type = "checkbox",
+						default_value = true,
+					},
+					{
+						setting_id = "activation_jam_chance",
+						type = "numeric",
+						default_value = 5.0,
+						range = { 0.0, 100.0 },
+						decimals_number = 1,
+						step_size_value = 1.0,
+					},
+					{
+						setting_id = "activation_lockout_mode",
+						type = "dropdown",
+						default_value = "special_only",
+						options = {
+							{ text = "lockout_mode_special_only", value = "special_only" },
+							{ text = "lockout_mode_defensive_only", value = "defensive_only" },
+							{ text = "lockout_mode_full", value = "full" },
+						},
+					},
+					{
 						setting_id = "combo_length",
 						type = "numeric",
 						default_value = 5,

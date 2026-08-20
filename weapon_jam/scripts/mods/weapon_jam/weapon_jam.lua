@@ -1,15 +1,60 @@
 local mod = get_mod("weapon_jam")
 local UIRenderer = require("scripts/managers/ui/ui_renderer")
 
+local function create_empty_slot_state()
+	return {
+		is_jammed = false,
+		combo_sequence = {},
+		current_step = 1,
+		error_timer = 0,
+		success_timer = 0,
+	}
+end
+
+mod.slot_states = {
+	slot_primary = create_empty_slot_state(),
+	slot_secondary = create_empty_slot_state(),
+}
+
 mod.is_jammed = false
-mod.combo_sequence = {}
-mod.current_step = 1
 mod.last_dryfire_time = 0
-mod.error_timer = 0
-mod.success_timer = 0
 mod.pulse_timer = 0
 mod.dpad_grace_timer = 0
 mod.waiting_for_dpad_release = false
+
+local function get_local_player_unit()
+	local player = Managers.player and Managers.player:local_player(1)
+	return player and player.player_unit
+end
+
+local function get_wielded_slot()
+	local unit = get_local_player_unit()
+	if not unit or not Unit.alive(unit) then return nil end
+	local unit_data_ext = ScriptUnit.has_extension(unit, "unit_data_system")
+	if not unit_data_ext then return nil end
+	local inventory_component = unit_data_ext:read_component("inventory")
+	return inventory_component and inventory_component.wielded_slot
+end
+
+local function get_slot_state(slot_name)
+	if slot_name and mod.slot_states[slot_name] then
+		return mod.slot_states[slot_name]
+	end
+	return nil
+end
+
+local function get_wielded_slot_state()
+	local wielded = get_wielded_slot()
+	if wielded and mod.slot_states[wielded] then
+		return mod.slot_states[wielded], wielded
+	end
+	return nil, nil
+end
+
+local function is_any_weapon_jammed()
+	return (mod.slot_states.slot_primary and mod.slot_states.slot_primary.is_jammed) or
+	       (mod.slot_states.slot_secondary and mod.slot_states.slot_secondary.is_jammed)
+end
 
 local function is_any_dpad_held()
 	local pad = Pad1
@@ -54,6 +99,14 @@ local SHOOT_ACTION_KINDS = {
 	ranged_load_special = true,
 }
 
+local SPECIAL_ACTIVATION_KINDS = {
+	activate_special = true,
+	toggle_special = true,
+	toggle_special_with_block = true,
+	overload_charge_weapon_special = true,
+	ranged_load_special = true,
+}
+
 local BLOCKED_GUN_ACTIONS = {
 	action_one_pressed = true,
 	action_one_hold = true,
@@ -65,6 +118,30 @@ local BLOCKED_GUN_ACTIONS = {
 	weapon_extra_hold = true,
 	weapon_extra = true,
 	weapon_extra_release = true,
+}
+
+local BLOCKED_DEFENSIVE_ACTIONS = {
+	action_one_pressed = true,
+	action_one_hold = true,
+	action_one_release = true,
+	weapon_extra_pressed = true,
+	weapon_extra_hold = true,
+	weapon_extra = true,
+	weapon_extra_release = true,
+}
+
+local BLOCKED_SPECIAL_ACTIONS = {
+	weapon_extra_pressed = true,
+	weapon_extra_hold = true,
+	weapon_extra = true,
+	weapon_extra_release = true,
+}
+
+local BLOCKED_MELEE_ATTACK_KINDS = {
+	sweep = true,
+	windup = true,
+	melee_explosive = true,
+	lunge_start_and_wait_for_end = true,
 }
 
 local BLOCKED_CONTROLLER_DPAD_ACTIONS = {
@@ -100,18 +177,60 @@ local function play_sound(event_name)
 	end
 end
 
-local function get_local_player_unit()
-	local player = Managers.player and Managers.player:local_player(1)
-	return player and player.player_unit
+local function play_activation_jam_sfx()
+	play_sound("wwise/events/ui/play_ui_character_loadout_weapon_mark_equip")
+	play_sound("wwise/events/ui/play_ui_character_loadout_equip_weapon")
+	play_sound("wwise/events/ui/play_ui_click")
 end
 
-local function is_local_player_wielding_ranged()
+local function play_gun_jam_sfx()
+	play_sound("wwise/events/ui/play_ui_character_loadout_equip_weapon")
+	play_sound("wwise/events/ui/play_ui_click")
+	play_sound("wwise/events/ui/play_hud_notifications_warning")
+end
+
+local function is_local_player_blocking()
 	local unit = get_local_player_unit()
 	if not unit or not Unit.alive(unit) then return false end
 	local unit_data_ext = ScriptUnit.has_extension(unit, "unit_data_system")
 	if not unit_data_ext then return false end
-	local inventory_component = unit_data_ext:read_component("inventory")
-	return inventory_component and inventory_component.wielded_slot == "slot_secondary"
+	local block_component = unit_data_ext:read_component("block")
+	return block_component and block_component.is_blocking
+end
+
+local function deactivate_wielded_weapon_special()
+	local unit = get_local_player_unit()
+	if not unit or not Unit.alive(unit) then return end
+	local weapon_ext = ScriptUnit.has_extension(unit, "weapon_system")
+	if weapon_ext and weapon_ext.set_wielded_weapon_weapon_special_active then
+		local t = Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay") or 0
+		weapon_ext:set_wielded_weapon_weapon_special_active(t, false, "manual_toggle")
+	end
+end
+
+local function is_wielded_weapon_special_jammable()
+	local unit = get_local_player_unit()
+	if not unit or not Unit.alive(unit) then return false end
+	local weapon_ext = ScriptUnit.has_extension(unit, "weapon_system")
+	if not weapon_ext or not weapon_ext.weapon_template then return false end
+	local weapon_template = weapon_ext:weapon_template()
+	if not weapon_template then return false end
+
+	if weapon_template.weapon_special then
+		return true
+	end
+
+	local actions = weapon_template.actions
+	if actions then
+		for _, action_settings in pairs(actions) do
+			local kind = action_settings and action_settings.kind
+			if kind and SPECIAL_ACTIVATION_KINDS[kind] then
+				return true
+			end
+		end
+	end
+
+	return false
 end
 
 local function generate_combo(length)
@@ -122,25 +241,46 @@ local function generate_combo(length)
 	return seq
 end
 
-mod.jam_weapon = function()
+mod.jam_weapon = function(slot)
 	if not mod:get("enable_mod") then return end
-	if mod.is_jammed then return end
+
+	local current_slot = slot or get_wielded_slot() or "slot_secondary"
+	local state = get_slot_state(current_slot)
+	if not state or state.is_jammed then return end
 
 	local length = math.floor(mod:get("combo_length") or 5)
-	mod.combo_sequence = generate_combo(length)
-	mod.current_step = 1
-	mod.is_jammed = true
-	mod.error_timer = 0
-	mod.success_timer = 0
+	state.combo_sequence = generate_combo(length)
+	state.current_step = 1
+	state.is_jammed = true
+	state.error_timer = 0
+	state.success_timer = 0
 
-	play_sound("wwise/events/ui/play_hud_notifications_warning")
+	mod.is_jammed = is_any_weapon_jammed()
+
+	local wielded = get_wielded_slot()
+	if wielded == current_slot then
+		deactivate_wielded_weapon_special()
+	end
+
+	if current_slot == "slot_secondary" then
+		play_gun_jam_sfx()
+	else
+		play_activation_jam_sfx()
+		play_sound("wwise/events/ui/play_hud_notifications_warning")
+	end
 end
 
-mod.unjam_weapon = function()
-	mod.is_jammed = false
-	mod.combo_sequence = {}
-	mod.current_step = 1
-	mod.success_timer = 1.2
+mod.unjam_weapon = function(slot)
+	local current_slot = slot or get_wielded_slot()
+	local state = get_slot_state(current_slot)
+	if not state or not state.is_jammed then return end
+
+	state.is_jammed = false
+	state.combo_sequence = {}
+	state.current_step = 1
+	state.success_timer = 1.2
+
+	mod.is_jammed = is_any_weapon_jammed()
 	mod.dpad_grace_timer = 0.5
 	mod.waiting_for_dpad_release = true
 
@@ -148,22 +288,35 @@ mod.unjam_weapon = function()
 end
 
 mod.on_force_jam_pressed = function()
-	if mod.is_jammed then
-		mod.unjam_weapon()
+	local wielded = get_wielded_slot()
+	local state = get_slot_state(wielded)
+	if state and state.is_jammed then
+		mod.unjam_weapon(wielded)
 	else
-		mod.jam_weapon()
+		mod.jam_weapon(wielded)
 	end
 end
 
 mod.on_force_unjam_pressed = function()
-	if mod.is_jammed then
-		mod.unjam_weapon()
+	local wielded = get_wielded_slot()
+	local state = get_slot_state(wielded)
+	if state and state.is_jammed then
+		mod.unjam_weapon(wielded)
+	else
+		if mod.slot_states.slot_primary.is_jammed then
+			mod.unjam_weapon("slot_primary")
+		elseif mod.slot_states.slot_secondary.is_jammed then
+			mod.unjam_weapon("slot_secondary")
+		end
 	end
 end
 
-local function trigger_jam_roll()
-	if not mod:get("enable_mod") or mod.is_jammed then return end
-	if not is_local_player_wielding_ranged() then return end
+local function trigger_gun_jam_roll()
+	if not mod:get("enable_mod") then return end
+	local wielded = get_wielded_slot()
+	if wielded ~= "slot_secondary" then return end
+	local state = get_slot_state("slot_secondary")
+	if not state or state.is_jammed then return end
 
 	local jam_chance = mod:get("jam_chance")
 	if jam_chance == nil then
@@ -171,9 +324,28 @@ local function trigger_jam_roll()
 	end
 	local roll = math.random() * 100.0
 	if roll < jam_chance then
-		mod.jam_weapon()
+		mod.jam_weapon("slot_secondary")
 	end
 end
+
+mod:hook("PlayerUnitWeaponExtension", "set_wielded_weapon_weapon_special_active", function(func, self, t, want_active, optional_reason)
+	if mod:get("enable_mod") then
+		local unit = self._unit
+		local local_unit = get_local_player_unit()
+		if unit and unit == local_unit then
+			local inventory_component = self._inventory_component
+			local wielded = inventory_component and inventory_component.wielded_slot
+			if wielded and (wielded == "slot_primary" or wielded == "slot_secondary") then
+				local state = get_slot_state(wielded)
+				if want_active and state and state.is_jammed then
+					return
+				end
+			end
+		end
+	end
+
+	return func(self, t, want_active, optional_reason)
+end)
 
 mod:hook_safe("ActionHandler", "start_action", function(self, id, action_objects, action_name, action_params, action_settings)
 	local unit = self._unit
@@ -181,17 +353,9 @@ mod:hook_safe("ActionHandler", "start_action", function(self, id, action_objects
 	if unit and unit == local_unit then
 		local kind = action_settings and action_settings.kind
 		if kind and SHOOT_ACTION_KINDS[kind] then
-			trigger_jam_roll()
+			trigger_gun_jam_roll()
 		end
 	end
-end)
-
-mod:hook_safe("ActionShoot", "start", function(self)
-	trigger_jam_roll()
-end)
-
-mod:hook_safe("ActionSpawnProjectile", "start", function(self)
-	trigger_jam_roll()
 end)
 
 local function clear_external_swap_queues()
@@ -205,6 +369,12 @@ local function clear_external_swap_queues()
 		table.clear(gaa.promises)
 		gaa.promise_exist = false
 	end
+	local gsa = get_mod("guarantee_special_action")
+	if gsa and gsa.promises then
+		gsa.promises.action_special = false
+		gsa.promises.action_reload = false
+		gsa.promise_exist = false
+	end
 end
 
 local function handle_input_interception(func, self, action_name)
@@ -215,13 +385,64 @@ local function handle_input_interception(func, self, action_name)
 
 	local out = func(self, action_name)
 
-	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
-		if mod.is_jammed and BLOCKED_GUN_ACTIONS[action_name] then
-			if (action_name == "action_one_pressed" or action_name == "action_one_hold") and out then
+	if not mod:get("enable_mod") then
+		return out
+	end
+
+	local wielded = get_wielded_slot()
+	if not wielded or (wielded ~= "slot_primary" and wielded ~= "slot_secondary") then
+		return out
+	end
+
+	local state = get_slot_state(wielded)
+	if not state then
+		return out
+	end
+
+	-- 1. Activation jam roll if currently wielded weapon is not jammed and weapon_extra_pressed fires
+	if not state.is_jammed and action_name == "weapon_extra_pressed" and out then
+		if mod:get("enable_activation_jam") and is_wielded_weapon_special_jammable() then
+			local jam_chance = mod:get("activation_jam_chance")
+			if jam_chance == nil then jam_chance = 5.0 end
+			local roll = math.random() * 100.0
+			if roll < jam_chance then
+				clear_external_swap_queues()
+				mod.jam_weapon(wielded)
+				return false
+			end
+		end
+	end
+
+	-- 2. If the currently wielded weapon is jammed, block actions based on lockout mode
+	if state.is_jammed then
+		clear_external_swap_queues()
+		local lockout_mode = mod:get("activation_lockout_mode") or "special_only"
+		local blocked_actions = BLOCKED_GUN_ACTIONS
+
+		if wielded == "slot_primary" then
+			if lockout_mode == "special_only" then
+				blocked_actions = BLOCKED_SPECIAL_ACTIONS
+			elseif lockout_mode == "defensive_only" then
+				blocked_actions = BLOCKED_DEFENSIVE_ACTIONS
+			end
+		end
+
+		local is_defensive_push = (lockout_mode == "defensive_only" and wielded == "slot_primary" and (action_name == "action_one_pressed" or action_name == "action_one_hold")) and (is_local_player_blocking() or (self.get and self:get("action_two_hold")))
+
+		if blocked_actions[action_name] and not is_defensive_push then
+			if (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "weapon_extra_pressed") and out then
 				local t = Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay") or 0
 				if t - (mod.last_dryfire_time or 0) > 0.25 then
 					mod.last_dryfire_time = t
-					play_sound("wwise/events/ui/play_ui_click")
+					if action_name == "weapon_extra_pressed" or action_name == "weapon_extra" then
+						play_sound("wwise/events/ui/play_ui_character_loadout_weapon_mark_equip")
+						play_sound("wwise/events/ui/play_ui_click")
+					elseif wielded == "slot_primary" then
+						play_sound("wwise/events/ui/play_ui_click")
+						play_sound("wwise/events/ui/play_ui_character_loadout_equip_armor_small")
+					else
+						play_sound("wwise/events/ui/play_ui_click")
+					end
 				end
 			end
 			return false
@@ -230,9 +451,9 @@ local function handle_input_interception(func, self, action_name)
 		if BLOCKED_CONTROLLER_DPAD_ACTIONS[action_name] then
 			local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
 			if is_gamepad then
-				if mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0) then
+				if is_any_weapon_jammed() or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0) then
 					clear_external_swap_queues()
-					if not mod.is_jammed and mod.waiting_for_dpad_release and not is_any_dpad_held() and ((mod.dpad_grace_timer or 0) <= 0) then
+					if not is_any_weapon_jammed() and mod.waiting_for_dpad_release and not is_any_dpad_held() and ((mod.dpad_grace_timer or 0) <= 0) then
 						mod.waiting_for_dpad_release = false
 					else
 						return false
@@ -249,9 +470,10 @@ mod:hook("InputService", "_get", handle_input_interception)
 mod:hook("InputService", "_get_simulate", handle_input_interception)
 
 mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_name, previous_check)
-	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
+	local state, wielded = get_wielded_slot_state()
+	if mod:get("enable_mod") and state and state.is_jammed then
 		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
-		if is_gamepad and (mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
+		if is_gamepad and (state.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
 			if slot_name == "slot_grenade_ability" or slot_name == "slot_pocketable" or slot_name == "slot_device" then
 				clear_external_swap_queues()
 				return false
@@ -262,9 +484,10 @@ mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_na
 end)
 
 mod:hook("PlayerUnitWeaponExtension", "can_wield", function(func, self, slot_name)
-	if mod:get("enable_mod") and is_local_player_wielding_ranged() then
+	local state, wielded = get_wielded_slot_state()
+	if mod:get("enable_mod") and state and state.is_jammed then
 		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
-		if is_gamepad and (mod.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
+		if is_gamepad and (state.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
 			if slot_name == "slot_grenade_ability" or slot_name == "slot_pocketable" or slot_name == "slot_device" then
 				clear_external_swap_queues()
 				return false
@@ -275,15 +498,35 @@ mod:hook("PlayerUnitWeaponExtension", "can_wield", function(func, self, slot_nam
 end)
 
 mod:hook("ActionHandler", "_validate_action", function(func, self, action_settings, condition_func_params, t, time_in_action, used_input)
-	if mod.is_jammed and mod:get("enable_mod") then
+	if mod:get("enable_mod") then
 		local unit = self._unit
 		local local_unit = get_local_player_unit()
 		if unit and unit == local_unit then
 			local inventory_component = self._inventory_component
-			if inventory_component and inventory_component.wielded_slot == "slot_secondary" then
-				local kind = action_settings and action_settings.kind
-				if kind and SHOOT_ACTION_KINDS[kind] then
-					return false
+			local wielded = inventory_component and inventory_component.wielded_slot
+			local state = wielded and get_slot_state(wielded)
+			local kind = action_settings and action_settings.kind
+
+			if state and state.is_jammed and kind then
+				local lockout_mode = mod:get("activation_lockout_mode") or "special_only"
+				if wielded == "slot_primary" then
+					if lockout_mode == "special_only" then
+						if SPECIAL_ACTIVATION_KINDS[kind] then
+							return false
+						end
+					elseif lockout_mode == "defensive_only" then
+						if SPECIAL_ACTIVATION_KINDS[kind] or BLOCKED_MELEE_ATTACK_KINDS[kind] then
+							return false
+						end
+					else
+						if SHOOT_ACTION_KINDS[kind] or SPECIAL_ACTIVATION_KINDS[kind] or BLOCKED_MELEE_ATTACK_KINDS[kind] then
+							return false
+						end
+					end
+				else
+					if SHOOT_ACTION_KINDS[kind] or SPECIAL_ACTIVATION_KINDS[kind] then
+						return false
+					end
 				end
 			end
 		end
@@ -293,8 +536,9 @@ mod:hook("ActionHandler", "_validate_action", function(func, self, action_settin
 end)
 
 local function poll_unjam_inputs()
-	if not mod.is_jammed or not mod:get("enable_mod") then return end
-	if not is_local_player_wielding_ranged() then return end
+	if not mod:get("enable_mod") then return end
+	local state, wielded = get_wielded_slot_state()
+	if not state or not state.is_jammed then return end
 
 	local allow_wasd = mod:get("allow_wasd")
 	local input_dir = nil
@@ -313,17 +557,17 @@ local function poll_unjam_inputs()
 	end
 
 	if input_dir then
-		local expected = mod.combo_sequence[mod.current_step]
+		local expected = state.combo_sequence[state.current_step]
 		if input_dir == expected then
-			mod.current_step = mod.current_step + 1
+			state.current_step = state.current_step + 1
 			play_sound("wwise/events/ui/play_ui_click")
 
-			if mod.current_step > #mod.combo_sequence then
-				mod.unjam_weapon()
+			if state.current_step > #state.combo_sequence then
+				mod.unjam_weapon(wielded)
 			end
 		else
-			mod.current_step = 1
-			mod.error_timer = 0.4
+			state.current_step = 1
+			state.error_timer = 0.4
 			play_sound("wwise/events/ui/play_ui_mission_request_declined")
 		end
 	end
@@ -339,19 +583,22 @@ end
 local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 	if not mod:get("enable_mod") then return end
 
-	local is_active_jam = mod.is_jammed and is_local_player_wielding_ranged()
-	local is_showing_success = mod.success_timer > 0
+	local state, wielded = get_wielded_slot_state()
+	if not state then return end
+
+	local is_active_jam = state.is_jammed
+	local is_showing_success = state.success_timer > 0
 
 	if not is_active_jam and not is_showing_success then return end
 
 	mod.pulse_timer = (mod.pulse_timer or 0) + dt
 
-	if mod.error_timer > 0 then
-		mod.error_timer = math.max(mod.error_timer - dt, 0)
+	if state.error_timer > 0 then
+		state.error_timer = math.max(state.error_timer - dt, 0)
 	end
 
-	if mod.success_timer > 0 then
-		mod.success_timer = math.max(mod.success_timer - dt, 0)
+	if state.success_timer > 0 then
+		state.success_timer = math.max(state.success_timer - dt, 0)
 	end
 
 	if mod.dpad_grace_timer > 0 then
@@ -373,12 +620,12 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 		center_y = screen_h - (180 * scale)
 	end
 
-	if mod.error_timer > 0 then
-		local shake = math.sin(t * 60) * 8 * (mod.error_timer / 0.4)
+	if state.error_timer > 0 then
+		local shake = math.sin(t * 60) * 8 * (state.error_timer / 0.4)
 		center_x = center_x + shake
 	end
 
-	local seq = mod.combo_sequence
+	local seq = state.combo_sequence
 	local num_arrows = #seq > 0 and #seq or 5
 	local arrow_box_size = 40 * scale
 	local arrow_spacing = 8 * scale
@@ -398,7 +645,7 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 
 	if is_showing_success then
 		theme_color = Color(255, 60, 240, 100)
-	elseif mod.error_timer > 0 then
+	elseif state.error_timer > 0 then
 		theme_color = Color(255, 255, 40, 40)
 	else
 		local r = math.floor(255)
@@ -414,7 +661,15 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 	draw_rect_border(ui_renderer, box_x, box_y, z_layer + 1, total_w, total_h, 2 * scale, theme_color)
 	UIRenderer.draw_rect(ui_renderer, Vector3(box_x, box_y + header_h, z_layer + 1), Vector3(total_w, 1 * scale, 0), theme_color)
 
-	local title_text = is_showing_success and "// " .. mod:localize("unjammed_title") .. " //" or "// " .. mod:localize("jammed_title") .. " //"
+	local is_special_only = (mod:get("activation_lockout_mode") or "special_only") == "special_only" and wielded == "slot_primary"
+	local title_text
+	if is_showing_success then
+		title_text = "// " .. mod:localize("unjammed_title") .. " //"
+	elseif is_special_only then
+		title_text = "// " .. mod:localize("special_jammed_title") .. " //"
+	else
+		title_text = "// " .. mod:localize("jammed_title") .. " //"
+	end
 	UIRenderer.draw_text(ui_renderer, title_text, 15 * scale, "proxima_nova_bold", Vector3(box_x, box_y + (2 * scale), z_layer + 2), Vector3(total_w, header_h, 0), theme_color, center_text_options)
 
 	local total_arrows_width = (num_arrows * arrow_box_size) + ((num_arrows - 1) * arrow_spacing)
@@ -437,11 +692,11 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 			local btn_border
 			local symbol_color
 
-			if i < mod.current_step then
+			if i < state.current_step then
 				btn_bg = Color(240, 60, 45, 10)
 				btn_border = Color(255, 255, 200, 0)
 				symbol_color = Color(255, 255, 215, 0)
-			elseif i == mod.current_step then
+			elseif i == state.current_step then
 				local active_pulse = 0.7 + 0.3 * math.sin(mod.pulse_timer * 12)
 				btn_bg = Color(240, math.floor(80 * active_pulse), math.floor(70 * active_pulse), math.floor(20 * active_pulse))
 				btn_border = Color(255, 255, 255, 255)
@@ -470,11 +725,9 @@ mod:hook_safe("HudElementCrosshair", "_draw_widgets", function(self, dt, t, inpu
 end)
 
 local function reset_state()
+	mod.slot_states.slot_primary = create_empty_slot_state()
+	mod.slot_states.slot_secondary = create_empty_slot_state()
 	mod.is_jammed = false
-	mod.combo_sequence = {}
-	mod.current_step = 1
-	mod.error_timer = 0
-	mod.success_timer = 0
 	mod.pulse_timer = 0
 	mod.dpad_grace_timer = 0
 	mod.waiting_for_dpad_release = false

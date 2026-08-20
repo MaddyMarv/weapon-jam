@@ -18,10 +18,37 @@ return {
 		en = "Toggle the weapon jam mechanic on or off.",
 	},
 	jam_chance = {
-		en = "Jam Chance (%%)",
+		en = "Shot Jam Chance (%%)",
 	},
 	jam_chance_description = {
-		en = "Percentage chance per shot for your ranged weapon to suffer a malfunction and jam.",
+		en = "Percentage chance per shot for your ranged firearm to suffer a malfunction and jam.",
+	},
+	enable_activation_jam = {
+		en = "Enable Activation Jam",
+	},
+	enable_activation_jam_description = {
+		en = "Allow weapon special activations (e.g. revving chainswords, energizing power weapons, loading special rounds) to malfunction and jam.",
+	},
+	activation_jam_chance = {
+		en = "Activation Jam Chance (%%)",
+	},
+	activation_jam_chance_description = {
+		en = "Percentage chance when attempting a weapon special activation for it to malfunction and jam.",
+	},
+	activation_lockout_mode = {
+		en = "Activation Jam Severity",
+	},
+	activation_lockout_mode_description = {
+		en = "Choose whether an activation jam disables the entire weapon or only locks out special activations until cleared.",
+	},
+	lockout_mode_special_only = {
+		en = "Special-Only Lockout",
+	},
+	lockout_mode_defensive_only = {
+		en = "Offensive Lockout (Allow Block/Pushing)",
+	},
+	lockout_mode_full = {
+		en = "Full Weapon Lockout",
 	},
 	combo_length = {
 		en = "Combo Length",
@@ -82,6 +109,9 @@ return {
 	},
 	jammed_title = {
 		en = "WEAPON JAMMED",
+	},
+	special_jammed_title = {
+		en = "SPECIAL JAMMED",
 	},
 	unjammed_title = {
 		en = "UNJAMMED",
