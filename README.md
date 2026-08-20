@@ -1,0 +1,5 @@
+### [Weapon Jam](https://www.nexusmods.com/warhammer40kdarktide/mods/1207)
+
+A standalone mod that introduces random weapon malfunctions when firing your ranged firearms. When your weapon jams, pulling the trigger produces a dry-fire click, and you must successfully execute a Helldivers-style directional stratagem combo (`▲`, `▼`, `◄`, `►`) to clear the malfunction and restore your firearm to working order!
+
+🔗 **Links:** [Source Code](https://github.com/MaddyMarv/Weapon-Jam) | [Nexus Mods Profile](https://www.nexusmods.com/profile/indicabunny) | [Support Me on Ko-fi](https://ko-fi.com/indicabunny)

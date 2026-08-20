@@ -2,7 +2,12 @@
     "name": "Weapon Jam",
     "author": "IndicaBunny",
     "version": "1.0.0",
-    "description": "Randomly jams your gun when shooting, requiring a Helldivers-style arrow combo to unjam it.",
+    "homepage": "https://www.nexusmods.com/warhammer40kdarktide/mods/1207",
+    "source": "https://github.com/MaddyMarv/Weapon-Jam",
+    "funding": {
+        "kofi": "https://ko-fi.com/indicabunny"
+    },
+    "description": "Randomly jams your ranged firearm when shooting, requiring a Helldivers-style arrow combo to unjam it.",
     "order": {
         "require": [],
         "this_before": [],
