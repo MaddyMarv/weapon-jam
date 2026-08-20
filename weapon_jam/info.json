@@ -1,0 +1,12 @@
+{
+    "name": "Weapon Jam",
+    "author": "IndicaBunny",
+    "version": "1.0.0",
+    "description": "Randomly jams your gun when shooting, requiring a Helldivers-style arrow combo to unjam it.",
+    "order": {
+        "require": [],
+        "this_before": [],
+        "this_after": []
+    },
+    "localization": {}
+}
