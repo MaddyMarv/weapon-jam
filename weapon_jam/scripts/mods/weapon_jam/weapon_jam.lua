@@ -431,8 +431,9 @@ local function handle_input_interception(func, self, action_name)
 		local is_defensive_push = (lockout_mode == "defensive_only" and wielded == "slot_primary" and (action_name == "action_one_pressed" or action_name == "action_one_hold")) and (is_local_player_blocking() or (self.get and self:get("action_two_hold")))
 
 		if blocked_actions[action_name] and not is_defensive_push and not is_physical_special_action then
-			if (action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "weapon_extra_pressed") and out then
-				local t = Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay") or 0
+			local is_trigger_attempt = action_name == "action_one_pressed" or action_name == "action_one_hold" or action_name == "action_one" or action_name == "weapon_extra_pressed" or action_name == "weapon_extra" or action_name == "action_shoot"
+			if is_trigger_attempt and out and out ~= false and out ~= 0 then
+				local t = (Managers.time and Managers.time:has_timer("main") and Managers.time:time("main")) or (Managers.time and Managers.time:has_timer("gameplay") and Managers.time:time("gameplay")) or os.clock()
 				if t - (mod.last_dryfire_time or 0) > 0.25 then
 					mod.last_dryfire_time = t
 					if action_name == "weapon_extra_pressed" or action_name == "weapon_extra" then
@@ -467,8 +468,21 @@ local function handle_input_interception(func, self, action_name)
 	return out
 end
 
+mod:hook("InputService", "init", function(func, self, type, mappings, filter_mappings, aliases)
+	func(self, type, mappings, filter_mappings, aliases)
+	self.get = self._get
+end)
+
 mod:hook("InputService", "_get", handle_input_interception)
 mod:hook("InputService", "_get_simulate", handle_input_interception)
+
+if Managers.input and Managers.input._input_services then
+	for _, service in pairs(Managers.input._input_services) do
+		if service._get then
+			service.get = service._get
+		end
+	end
+end
 
 mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_name, previous_check)
 	local state, wielded = get_wielded_slot_state()
