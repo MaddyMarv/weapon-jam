@@ -47,6 +47,12 @@ return {
 	force_jam_key_description = {
 		en = "Press this hotkey to manually trigger a weapon jam for testing.",
 	},
+	force_unjam_key = {
+		en = "Force Unjam Hotkey",
+	},
+	force_unjam_key_description = {
+		en = "Press this hotkey to instantly clear any active weapon jam.",
+	},
 	tab_hud = {
 		en = "HUD & Display",
 	},

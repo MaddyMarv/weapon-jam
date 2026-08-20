@@ -50,6 +50,14 @@ return {
 						keybind_type = "function_call",
 						function_name = "on_force_jam_pressed",
 					},
+					{
+						setting_id = "force_unjam_key",
+						type = "keybind",
+						default_value = {},
+						keybind_trigger = "pressed",
+						keybind_type = "function_call",
+						function_name = "on_force_unjam_pressed",
+					},
 				},
 			},
 			{

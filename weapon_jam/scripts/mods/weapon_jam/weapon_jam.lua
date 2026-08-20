@@ -155,6 +155,12 @@ mod.on_force_jam_pressed = function()
 	end
 end
 
+mod.on_force_unjam_pressed = function()
+	if mod.is_jammed then
+		mod.unjam_weapon()
+	end
+end
+
 local function trigger_jam_roll()
 	if not mod:get("enable_mod") or mod.is_jammed then return end
 	if not is_local_player_wielding_ranged() then return end
