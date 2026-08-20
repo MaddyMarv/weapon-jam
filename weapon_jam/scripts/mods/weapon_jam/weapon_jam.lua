@@ -260,20 +260,16 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 		theme_color = Color(255, r, g, b)
 	end
 
-	-- 1. Main Background and Header Background
 	UIRenderer.draw_rect(ui_renderer, Vector3(box_x, box_y + header_h, z_layer), Vector3(total_w, body_h, 0), bg_color)
 	local header_bg = Color(240, math.floor(theme_color[2] * 0.25), math.floor(theme_color[3] * 0.25), math.floor(theme_color[4] * 0.25))
 	UIRenderer.draw_rect(ui_renderer, Vector3(box_x, box_y, z_layer), Vector3(total_w, header_h, 0), header_bg)
 
-	-- 2. Border
 	draw_rect_border(ui_renderer, box_x, box_y, z_layer + 1, total_w, total_h, 2 * scale, theme_color)
 	UIRenderer.draw_rect(ui_renderer, Vector3(box_x, box_y + header_h, z_layer + 1), Vector3(total_w, 1 * scale, 0), theme_color)
 
-	-- 3. Header Text
 	local title_text = is_showing_success and "// " .. mod:localize("unjammed_title") .. " //" or "// " .. mod:localize("jammed_title") .. " //"
 	UIRenderer.draw_text(ui_renderer, title_text, 15 * scale, "proxima_nova_bold", Vector3(box_x, box_y + (2 * scale), z_layer + 2), Vector3(total_w, header_h, 0), theme_color, center_text_options)
 
-	-- 4. Arrow Sequence Buttons (Helldivers Stratagem Style)
 	local total_arrows_width = (num_arrows * arrow_box_size) + ((num_arrows - 1) * arrow_spacing)
 	local start_arrows_x = center_x - (total_arrows_width * 0.5)
 	local arrow_y = box_y + header_h + ((body_h - arrow_box_size) * 0.5)
@@ -295,18 +291,15 @@ local function draw_unjam_hud(dt, t, ui_renderer, render_settings)
 			local symbol_color
 
 			if i < mod.current_step then
-				-- Completed Arrow: Glowing Helldivers Gold
 				btn_bg = Color(240, 60, 45, 10)
 				btn_border = Color(255, 255, 200, 0)
 				symbol_color = Color(255, 255, 215, 0)
 			elseif i == mod.current_step then
-				-- Active Arrow: Flashing White / Highlighted
 				local active_pulse = 0.7 + 0.3 * math.sin(mod.pulse_timer * 12)
 				btn_bg = Color(240, math.floor(80 * active_pulse), math.floor(70 * active_pulse), math.floor(20 * active_pulse))
 				btn_border = Color(255, 255, 255, 255)
 				symbol_color = Color(255, 255, 255, 255)
 			else
-				-- Remaining Arrow: Dimmed Steel Grey
 				btn_bg = Color(200, 22, 26, 32)
 				btn_border = Color(160, 60, 65, 75)
 				symbol_color = Color(160, 95, 105, 115)
