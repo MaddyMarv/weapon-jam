@@ -8,11 +8,8 @@
         "kofi": "https://ko-fi.com/indicabunny"
     },
     "description": "Randomly jams your ranged firearm when shooting, requiring a Helldivers-style arrow combo to unjam it.",
-    "dependencies": {
-        "required": [],
-        "optional": [],
-        "self_before": [],
-        "self_after": []
-    },
+    "required": [],
+    "self_before": [],
+    "self_after": [],
     "localization": {}
 }
