@@ -5,4 +5,17 @@ A standalone mod that introduces random weapon malfunctions when firing your ran
 
 Works on xbox!
 
+
+**Options:**
+- Enable Options (Mod, Activation Jam, Audio Effects)
+- Shot Jam Chance (%)
+- Activation Jam Chance (%)
+- Activation Jam Severity [Special-Only Lockout, Offensive Lockout (Allow Block/Pushing), Full Weapon Lockout]
+- Combo Length
+- Allow WASD Inputs
+- Force Jam Hotkey (Hotkey)
+- Force Unjam Hotkey (Hotkey)
+- HUD Position [Top Center, Below Crosshair, Bottom Center]
+- HUD Scale
+
 🔗 **Links:** [Source Code](https://github.com/MaddyMarv/Weapon-Jam) | [Nexus Mods Profile](https://www.nexusmods.com/profile/indicabunny) | [Support Me on Ko-fi](https://ko-fi.com/indicabunny)
