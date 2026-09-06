@@ -16,8 +16,8 @@ Works on xbox!
 - Combo Length
 - Allow WASD Inputs
 - Enable Audio Effects
-- Force Jam Hotkey (Hotkey)
-- Force Unjam Hotkey (Hotkey)
+- Force Jam (Hotkey)
+- Force Unjam (Hotkey)
 
 **HUD & Display**
 - HUD Position [Top Center, Below Crosshair, Bottom Center]
