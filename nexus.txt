@@ -1,0 +1,23 @@
+A standalone mod that introduces random weapon malfunctions when firing your ranged firearms. When your weapon jams, pulling the trigger produces a dry-fire click, and you must successfully execute a Helldivers-style directional stratagem combo (▲, ▼, ◄, ►) to clear the malfunction and restore your firearm to working order!
+
+Works on xbox!
+
+[b]Options:[/b]
+
+[b]General[/b]
+- Enable Mod
+- Shot Jam Chance (%)
+- Enable Activation Jam
+- Activation Jam Chance (%)
+- Activation Lockout Mode [Special-Only Lockout, Offensive Lockout (Allow Block/Pushing), Full Weapon Lockout]
+- Combo Length
+- Allow WASD Inputs
+- Enable Audio Effects
+- Force Jam (Hotkey)
+- Force Unjam (Hotkey)
+
+[b]HUD & Display[/b]
+- HUD Position [Top Center, Below Crosshair, Bottom Center]
+- HUD Scale
+
+[b]Links:[/b] [url=https://github.com/MaddyMarv/Weapon-Jam]Source Code[/url] | [url=https://www.nexusmods.com/profile/indicabunny]Nexus Mods Profile[/url] | [url=https://ko-fi.com/indicabunny]Support Me on Ko-fi[/url]
