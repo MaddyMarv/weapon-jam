@@ -20,4 +20,5 @@ Works on xbox!
 - HUD Position [Top Center, Below Crosshair, Bottom Center]
 - HUD Scale
 
-[b]Links:[/b] [url=https://github.com/MaddyMarv/Weapon-Jam]Source Code[/url] | [url=https://www.nexusmods.com/profile/indicabunny]Nexus Mods Profile[/url] | [url=https://ko-fi.com/indicabunny]Support Me on Ko-fi[/url]
+[b]Links:[/b]
+[url=https://github.com/MaddyMarv/Weapon-Jam]Source Code[/url] | [url=https://www.nexusmods.com/profile/indicabunny]Nexus Mods Profile[/url] | [url=https://ko-fi.com/indicabunny]Support Me on Ko-fi[/url]
