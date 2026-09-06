@@ -1,4 +1,4 @@
-A standalone mod that introduces random weapon malfunctions when firing your ranged firearms. When your weapon jams, pulling the trigger produces a dry-fire click, and you must successfully execute a Helldivers-style directional stratagem combo (▲, ▼, ◄, ►) to clear the malfunction and restore your firearm to working order!
+A standalone mod that introduces random weapon malfunctions when firing your ranged firearms. When your weapon jams, pulling the trigger produces a dry-fire click, and you must successfully execute a Helldivers-style directional stratagem combo (▲, ▼, ◄, ►) to clear the malfunction and restore your firearm to working order.
 
 Works on xbox!
 
