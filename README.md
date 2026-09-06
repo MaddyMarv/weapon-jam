@@ -5,16 +5,21 @@ A standalone mod that introduces random weapon malfunctions when firing your ran
 
 Works on xbox!
 
-
 **Options:**
-- Enable Options (Mod, Activation Jam, Audio Effects)
+
+**General**
+- Enable Mod
 - Shot Jam Chance (%)
+- Enable Activation Jam
 - Activation Jam Chance (%)
-- Activation Jam Severity [Special-Only Lockout, Offensive Lockout (Allow Block/Pushing), Full Weapon Lockout]
+- Activation Lockout Mode [Special-Only Lockout, Offensive Lockout (Allow Block/Pushing), Full Weapon Lockout]
 - Combo Length
 - Allow WASD Inputs
+- Enable Audio Effects
 - Force Jam Hotkey (Hotkey)
 - Force Unjam Hotkey (Hotkey)
+
+**HUD & Display**
 - HUD Position [Top Center, Below Crosshair, Bottom Center]
 - HUD Scale
 
