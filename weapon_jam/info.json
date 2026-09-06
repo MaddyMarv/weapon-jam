@@ -7,7 +7,7 @@
     "funding": {
         "kofi": "https://ko-fi.com/indicabunny"
     },
-    "description": "Adds random weapon jams to ranged weapons. Clear malfunctions with a directional stratagem combo (▲, ▼, ◄, ►).",
+    "description": "Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it.",
     "dependencies": {
         "required": [],
         "self_after": [],

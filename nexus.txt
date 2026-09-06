@@ -1,4 +1,4 @@
-Adds random weapon jams to ranged weapons. Clear malfunctions with a directional stratagem combo (▲, ▼, ◄, ►). Works on Xbox controllers.
+Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it. Works on Xbox controllers.
 
 [b]Options:[/b]
 

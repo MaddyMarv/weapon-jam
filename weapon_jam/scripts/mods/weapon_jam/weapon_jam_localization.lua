@@ -3,7 +3,7 @@ return {
 		en = "Weapon Jam",
 	},
 	mod_description = {
-		en = "Adds random weapon jams to ranged weapons. Clear malfunctions with a directional stratagem combo (▲, ▼, ◄, ►).",
+		en = "Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it.",
 	},
 	tab_general = {
 		en = "General",
@@ -15,7 +15,7 @@ return {
 		en = "Enable Mod",
 	},
 	enable_mod_description = {
-		en = "Toggle the weapon jam mechanic on or off.",
+		en = "Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it.",
 	},
 	jam_chance = {
 		en = "Shot Jam Chance (%%)",

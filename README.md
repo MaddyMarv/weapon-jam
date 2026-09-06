@@ -1,7 +1,7 @@
 ### [Weapon Jam](https://www.nexusmods.com/warhammer40kdarktide/mods/1207)
 <img width="442" height="161" alt="image" src="https://github.com/user-attachments/assets/fdb4e2d1-b201-4b58-b70b-345eb7da34db" />
 
-Adds random weapon jams to ranged weapons. Clear malfunctions with a directional stratagem combo (▲, ▼, ◄, ►). Works on Xbox controllers.
+Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it. Works on Xbox controllers.
 
 **Options:**
 
