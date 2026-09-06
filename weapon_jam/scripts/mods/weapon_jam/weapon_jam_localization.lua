@@ -3,7 +3,7 @@ return {
 		en = "Weapon Jam",
 	},
 	mod_description = {
-		en = "Randomly jams your ranged firearm when shooting, requiring a Helldivers-style arrow combo to unjam it.",
+		en = "Adds random weapon jams to ranged weapons. Clear malfunctions with a directional stratagem combo (▲, ▼, ◄, ►).",
 	},
 	tab_general = {
 		en = "General",
