@@ -3,7 +3,8 @@
 
 Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it. Works on Xbox controllers.
 
-**Options:**
+<details>
+<summary><b>Mod Settings / Commands</b></summary>
 
 **General**
 - Enable Mod
@@ -20,5 +21,6 @@ Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow co
 **HUD & Display**
 - HUD Position [Top Center, Below Crosshair, Bottom Center]
 - HUD Scale
+</details>
 
 🔗 **Links:** [Source Code](https://github.com/MaddyMarv/Weapon-Jam) | [Nexus Mods Profile](https://www.nexusmods.com/profile/indicabunny) | [Support Me on Ko-fi](https://ko-fi.com/indicabunny)
