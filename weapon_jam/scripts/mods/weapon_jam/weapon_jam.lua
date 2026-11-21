@@ -23,7 +23,7 @@ mod.dpad_grace_timer = 0
 mod.waiting_for_dpad_release = false
 
 local function get_local_player_unit()
-	local player = Managers.player and Managers.player:local_player(1)
+	local player = Managers.player and Managers.player:local_player_safe(1)
 	return player and player.player_unit
 end
 
