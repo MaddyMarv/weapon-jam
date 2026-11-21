@@ -547,7 +547,7 @@ if Managers.input and Managers.input._input_services then
 end
 
 mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_name, previous_check)
-	local state, wielded = get_wielded_slot_state()
+	local state = get_wielded_slot_state()
 	if mod:get("enable_mod") and state and state.is_jammed then
 		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
 		if is_gamepad and (state.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
@@ -561,7 +561,7 @@ mod:hook("PlayerUnitAbilityExtension", "can_wield", function(func, self, slot_na
 end)
 
 mod:hook("PlayerUnitWeaponExtension", "can_wield", function(func, self, slot_name)
-	local state, wielded = get_wielded_slot_state()
+	local state = get_wielded_slot_state()
 	if mod:get("enable_mod") and state and state.is_jammed then
 		local is_gamepad = Managers.input and Managers.input.is_using_gamepad and Managers.input:is_using_gamepad()
 		if is_gamepad and (state.is_jammed or mod.waiting_for_dpad_release or ((mod.dpad_grace_timer or 0) > 0)) then
