@@ -3,7 +3,7 @@ return {
 		en = "Weapon Jam",
 	},
 	mod_description = {
-		en = "Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it.",
+		en = "Adds random weapon jams to ranged weapons, requiring a Helldivers-style arrow combo to unjam it. Works with Xbox controllers.",
 	},
 	tab_general = {
 		en = "General",
